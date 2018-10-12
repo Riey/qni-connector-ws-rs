@@ -1,0 +1,17 @@
+[package]
+name = "qni-connector-ws-rs"
+version = "0.1.0"
+authors = ["Riey <creeper844@gmail.com>"]
+edition = "2018"
+
+[dependencies.qni-core-rs]
+version = "*"
+git = "https://github.com/Riey/qni-core-rs"
+
+[dependencies.ws]
+git = "https://github.com/peddermaster2/ws-rs"
+rev = "fac799e61a70af06c71443138ef5601dd290dc15"
+features = ["ssl"]
+
+[dependencies]
+mio = "*"
