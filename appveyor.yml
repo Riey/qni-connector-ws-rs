@@ -113,7 +113,7 @@ install:
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %channel% --default-host %target%
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-  - set OPENSSL_DIR="C:\OpenSSL"
+  - set OPENSSL_DIR=C:\OpenSSL
   - rustc -vV
   - cargo -vV
 
