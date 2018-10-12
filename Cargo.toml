@@ -14,4 +14,4 @@ rev = "fac799e61a70af06c71443138ef5601dd290dc15"
 features = ["ssl"]
 
 [dependencies]
-mio = "*"
+simple-error = "*"

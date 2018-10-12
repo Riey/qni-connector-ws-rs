@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 
-use mio::Token;
+use ws::util::Token;
 
 use std::sync::mpsc::TryRecvError;
 use qni_core_rs::prelude::*;
@@ -61,7 +61,11 @@ impl ws::Handler for WebSocketServer {
             }
             TOKEN_CHECK_EXIT => {
                 match self.ctx.need_exit() {
-                    true => self.out.close(ws::CloseCode::Normal),
+                    true => {
+                        self.out.shutdown().unwrap();
+
+                        Ok(())
+                    },
                     false => self.out.timeout(500, TOKEN_CHECK_EXIT)
                 }
             }
@@ -70,13 +74,20 @@ impl ws::Handler for WebSocketServer {
     }
 }
 
-pub fn start_connector(hub: SharedHubPtr, host: &str) -> ws::Result<()> {
+use simple_error::{SimpleResult, SimpleError};
+
+pub fn start_connector(hub: SharedHubPtr, host: &str) -> SimpleResult<()> {
 
     let hub = unsafe {
         hub.read()
     };
 
-    ws::listen(&host, move |out| {
+    ws::Builder::new().with_settings(ws::Settings {
+        tcp_nodelay: true,
+        ..ws::Settings::default()
+    }).build(move |out| {
         WebSocketServer::new(out, hub.clone())
-    })
+    }).map_err(SimpleError::from)?.listen(host).map_err(SimpleError::from)?;
+
+    Ok(())
 }
