@@ -110,13 +110,10 @@ matrix:
 # default-toolchain and default-host manually here.
 install:
   - cinst protoc
-  - appveyor DownloadFile https://slproweb.com/download/Win%bits%OpenSSL-1_1_1.exe
-  - Win%bits%OpenSSL-1_1_1.exe /silent /verysilent /sp- /dir="C:\OpenSSL"
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %channel% --default-host %target%
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-  - if defined msys2 set PATH=C:\msys64\mingw%bits%\bin;%PATH%
-  - set OPENSSL_DIR=C:\OpenSSL
+  - if defined msys set PATH=C:\msys64\mingw%bits%\bin;%PATH%
   - rustc -vV
   - cargo -vV
 
