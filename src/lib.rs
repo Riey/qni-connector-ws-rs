@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-
-use ws::util::Token;
-
-use std::sync::mpsc::TryRecvError;
 use qni_core_rs::prelude::*;
+use ws::util::Token;
 
 pub struct WebSocketServer {
     out: ws::Sender,
@@ -13,7 +10,6 @@ pub struct WebSocketServer {
 
 impl WebSocketServer {
     pub fn new(out: ws::Sender, hub: Arc<Hub>) -> Self {
-
         let console_ctx = hub.start_new_program();
 
         Self {
@@ -24,16 +20,14 @@ impl WebSocketServer {
 }
 
 const TOKEN_CHECK_SEND: Token = Token(1);
-const TOKEN_CHECK_EXIT: Token = Token(2);
 
 impl ws::Handler for WebSocketServer {
     fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
-        self.out.timeout(500, TOKEN_CHECK_EXIT)?;
-        self.out.timeout(100, TOKEN_CHECK_SEND)
+        self.out.timeout(50, TOKEN_CHECK_SEND)
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        match self.ctx.recv_message(&msg.into_data()) {
+        match self.ctx.on_recv_message(&msg.into_data()) {
             Some(callback) => {
                 self.out.send(callback)?;
             }
@@ -46,48 +40,60 @@ impl ws::Handler for WebSocketServer {
     fn on_timeout(&mut self, event: Token) -> ws::Result<()> {
         match event {
             TOKEN_CHECK_SEND => {
-                match self.ctx.try_recv_send_messge() {
-                    Ok(msg) => {
-                        self.out.send(msg)?;
-                        self.out.timeout(100, TOKEN_CHECK_SEND)
-                    }
-                    Err(TryRecvError::Empty) => {
-                        self.out.timeout(50, TOKEN_CHECK_SEND)
-                    }
-                    Err(TryRecvError::Disconnected) => {
-                        self.out.timeout(300, TOKEN_CHECK_SEND)
-                    }
+                match self.ctx.try_get_msg() {
+                    Some(msg) => self.out.send(msg)?,
+                    None => {}
                 }
-            }
-            TOKEN_CHECK_EXIT => {
-                match self.ctx.need_exit() {
-                    true => {
-                        self.out.shutdown().unwrap();
 
-                        Ok(())
-                    },
-                    false => self.out.timeout(500, TOKEN_CHECK_EXIT)
-                }
+                self.out.timeout(50, TOKEN_CHECK_SEND)
             }
-            _ => Ok(())
+            _ => Ok(()),
         }
     }
 }
 
-use simple_error::{SimpleResult, SimpleError};
+use simple_error::{SimpleError, SimpleResult};
+use std::thread;
+use std::time::Duration;
 
-pub fn start_connector(hub: SharedHubPtr, host: &str) -> SimpleResult<()> {
+pub fn start_connector(hub: Arc<Hub>, host: String) -> SimpleResult<()> {
+    let hub_inner = hub.clone();
 
-    let hub = unsafe {
-        hub.read()
-    };
+    let socket = ws::Builder::new()
+        .with_settings(ws::Settings {
+            tcp_nodelay: true,
+            ..ws::Settings::default()
+        })
+        .build(move |out| WebSocketServer::new(out, hub_inner.clone()))
+        .map_err(SimpleError::from)?;
 
-    ws::Builder::new().with_settings(ws::Settings {
-        tcp_nodelay: true,
-        ..ws::Settings::default()
-    }).build(move |out| {
-        WebSocketServer::new(out, hub.clone())
-    }).map_err(SimpleError::from)?.listen(host).map_err(SimpleError::from)?;
+    let handle = socket.broadcaster();
 
-    Ok(())
+    let t = thread::spawn(move || {
+        let ret = socket.listen(&host);
+
+        match ret {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                println!("err: {}", err);
+                Err(SimpleError::from(err))
+            }
+        }
+    });
+
+    while !hub.need_exit() {
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    handle.shutdown().map_err(SimpleError::from)?;
+
+    match t.join() {
+        Ok(ret) => ret,
+        Err(_) => Err(SimpleError::new("join err")),
+    }
+}
+
+pub mod prelude {
+    pub use crate::*;
+    pub use qni_core_rs::prelude as core;
 }

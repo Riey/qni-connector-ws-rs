@@ -5,7 +5,6 @@ authors = ["Riey <creeper844@gmail.com>"]
 edition = "2018"
 
 [dependencies.qni-core-rs]
-version = "*"
 git = "https://github.com/Riey/qni-core-rs"
 
 [dependencies.ws]
