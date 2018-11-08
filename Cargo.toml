@@ -12,8 +12,7 @@ ssl = ["ws/ssl", "openssl"]
 git = "https://github.com/Riey/qni-core-rs"
 
 [dependencies.ws]
-git = "https://github.com/peddermaster2/ws-rs"
-rev = "fac799e61a70af06c71443138ef5601dd290dc15"
+version = "*"
 
 [dependencies.openssl]
 version = "0.10"
