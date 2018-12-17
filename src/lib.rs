@@ -38,11 +38,11 @@ impl WebSocketServer {
     }
 }
 
-const TOKEN_CHECK_SEND: Token = Token(1);
+const TOKEN_TICK: Token = Token(1);
 
 impl ws::Handler for WebSocketServer {
     fn on_open(&mut self, _: ws::Handshake) -> ws::Result<()> {
-        self.out.timeout(50, TOKEN_CHECK_SEND)
+        self.out.timeout(50, TOKEN_TICK)
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
@@ -58,13 +58,17 @@ impl ws::Handler for WebSocketServer {
 
     fn on_timeout(&mut self, event: Token) -> ws::Result<()> {
         match event {
-            TOKEN_CHECK_SEND => {
-                match self.ctx.try_get_msg() {
-                    Some(msg) => self.out.send(msg)?,
-                    None => {}
-                }
+            TOKEN_TICK => {
+                if self.ctx.need_exit() {
+                    self.out.shutdown()
+                } else {
+                    match self.ctx.try_get_msg() {
+                        Some(msg) => self.out.send(msg)?,
+                        None => {}
+                    }
 
-                self.out.timeout(50, TOKEN_CHECK_SEND)
+                    self.out.timeout(50, TOKEN_TICK)
+                }
             }
             _ => Ok(()),
         }
