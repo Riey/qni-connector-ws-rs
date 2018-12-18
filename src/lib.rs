@@ -60,7 +60,7 @@ impl ws::Handler for WebSocketServer {
         match event {
             TOKEN_TICK => {
                 if self.ctx.need_exit() {
-                    self.out.shutdown()
+                    self.out.close(ws::CloseCode::Normal)
                 } else {
                     match self.ctx.try_get_msg() {
                         Some(msg) => self.out.send(msg)?,
