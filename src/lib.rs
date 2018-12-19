@@ -20,12 +20,10 @@ pub struct WebSocketServer {
 }
 
 impl WebSocketServer {
-    pub fn new(out: ws::Sender, hub: Arc<Hub>) -> Self {
-        let console_ctx = hub.start_new_program();
-
+    pub fn new(out: ws::Sender, console_ctx: Arc<ConsoleContext>) -> Self {
         Self {
             out,
-            ctx: ConnectorContext::new(hub, console_ctx),
+            ctx: ConnectorContext::new(console_ctx),
             #[cfg(feature = "ssl")]
             ssl: None,
         }
@@ -60,7 +58,7 @@ impl ws::Handler for WebSocketServer {
         match event {
             TOKEN_TICK => {
                 if self.ctx.need_exit() {
-                    self.out.close(ws::CloseCode::Normal)
+                    self.out.shutdown()
                 } else {
                     match self.ctx.try_get_msg() {
                         Some(msg) => self.out.send(msg)?,
@@ -81,11 +79,9 @@ impl ws::Handler for WebSocketServer {
 }
 
 use simple_error::{SimpleError, SimpleResult};
-use std::thread;
-use std::time::Duration;
 
 #[cfg(feautre = "ssl")]
-pub fn start_connector_ssl(hub: Arc<Hub>, host: String, cert: &[u8], pkey: &[u8]) -> SimpleResult<()> {
+pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: String, cert: &[u8], pkey: &[u8]) -> SimpleResult<()> {
 
     let acceptor = Arc::new({
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -94,77 +90,29 @@ pub fn start_connector_ssl(hub: Arc<Hub>, host: String, cert: &[u8], pkey: &[u8]
         builder.build()
     });
 
-    let hub_inner = hub.clone();
-
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, hub_inner.clone()).with_ssl(acceptor.clone()))
+        .build(move |out| WebSocketServer::new(out, ctx.clone()).with_ssl(acceptor.clone()))
         .map_err(SimpleError::from)?;
 
-    let handle = socket.broadcaster();
 
-    let t = thread::spawn(move || {
-        let ret = socket.listen(&host);
-
-        match ret {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                println!("err: {}", err);
-                Err(SimpleError::from(err))
-            }
-        }
-    });
-
-    while !hub.need_exit() {
-        thread::sleep(Duration::from_secs(1));
-    }
-
-    handle.shutdown().map_err(SimpleError::from)?;
-
-    match t.join() {
-        Ok(ret) => ret,
-        Err(_) => Err(SimpleError::new("join err")),
-    }
+    socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
 }
 
-pub fn start_connector(hub: Arc<Hub>, host: String) -> SimpleResult<()> {
-    let hub_inner = hub.clone();
-
+pub fn start_connector(ctx: &Arc<ConsoleContext>, host: String) -> SimpleResult<()> {
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, hub_inner.clone()))
+        .build(move |out| WebSocketServer::new(out, ctx.clone()))
         .map_err(SimpleError::from)?;
 
-    let handle = socket.broadcaster();
 
-    let t = thread::spawn(move || {
-        let ret = socket.listen(&host);
-
-        match ret {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                println!("err: {}", err);
-                Err(SimpleError::from(err))
-            }
-        }
-    });
-
-    while !hub.need_exit() {
-        thread::sleep(Duration::from_secs(1));
-    }
-
-    handle.shutdown().map_err(SimpleError::from)?;
-
-    match t.join() {
-        Ok(ret) => ret,
-        Err(_) => Err(SimpleError::new("join err")),
-    }
+    socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
 }
 
 pub mod prelude {
