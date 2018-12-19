@@ -81,7 +81,7 @@ impl ws::Handler for WebSocketServer {
 use simple_error::{SimpleError, SimpleResult};
 
 #[cfg(feautre = "ssl")]
-pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: String, cert: &[u8], pkey: &[u8]) -> SimpleResult<()> {
+pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], pkey: &[u8]) -> SimpleResult<()> {
 
     let acceptor = Arc::new({
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -102,7 +102,7 @@ pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: String, cert: &[u8],
     socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
 }
 
-pub fn start_connector(ctx: &Arc<ConsoleContext>, host: String) -> SimpleResult<()> {
+pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
