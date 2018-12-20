@@ -1,4 +1,7 @@
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+use borrowed_thread;
 
 #[cfg(feature = "ssl")]
 use openssl::pkey::PKey;
@@ -99,7 +102,21 @@ pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], p
         .map_err(SimpleError::from)?;
 
 
-    socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    let sender = socket.broadcaster();
+
+    let handle = borrowed_thread::spawn(|| {
+        socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    });
+
+    while !ctx.need_exit() {
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    sender.shutdown().map_err(SimpleError::from)?;
+
+    handle.join().map_err(|_| {
+        SimpleError::new("join err")
+    })?
 }
 
 pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
@@ -111,11 +128,23 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
         .build(move |out| WebSocketServer::new(out, ctx.clone()))
         .map_err(SimpleError::from)?;
 
+    let sender = socket.broadcaster();
 
-    socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    let handle = borrowed_thread::spawn(|| {
+        socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    });
+
+    while !ctx.need_exit() {
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    sender.shutdown().map_err(SimpleError::from)?;
+
+    handle.join().map_err(|_| {
+        SimpleError::new("join err")
+    })?
 }
 
 pub mod prelude {
     pub use crate::*;
-    pub use qni_core_rs::prelude as core;
 }
