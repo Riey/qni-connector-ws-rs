@@ -112,11 +112,12 @@ pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], p
         thread::sleep(Duration::from_secs(1));
     }
 
-    sender.shutdown().map_err(SimpleError::from)?;
+    let handle_ret = handle.join();
 
-    handle.join().map_err(|_| {
-        SimpleError::new("join err")
-    })?
+    match sender.shutdown() {
+        Ok(_) => handle_ret.map_err(|_| SimpleError::new("join err"))?,
+        Err(err) => Err(SimpleError::from(err)),
+    }
 }
 
 pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
@@ -138,11 +139,12 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
         thread::sleep(Duration::from_secs(1));
     }
 
-    sender.shutdown().map_err(SimpleError::from)?;
+    let handle_ret = handle.join();
 
-    handle.join().map_err(|_| {
-        SimpleError::new("join err")
-    })?
+    match sender.shutdown() {
+        Ok(_) => handle_ret.map_err(|_| SimpleError::new("join err"))?,
+        Err(err) => Err(SimpleError::from(err)),
+    }
 }
 
 pub mod prelude {
