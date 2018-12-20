@@ -3,7 +3,10 @@ name = "qni-connector-ws-rs"
 description = "qni connector for websocket"
 version = "0.2.2"
 authors = ["Riey <creeper844@gmail.com>"]
+keywords = ["qni", "connector"]
 edition = "2018"
+repository = "https://github.com/Riey/qni-connector-ws-rs"
+homepage = "https://github.com/Riey/qni-connector-ws-rs"
 license-file = "LICENSE"
 readme = "README.md"
 
