@@ -1,3 +1,5 @@
+use log::debug;
+
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -112,12 +114,13 @@ pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], p
         thread::sleep(Duration::from_secs(1));
     }
 
-    let handle_ret = handle.join();
+    debug!("Console exited shutdown ...");
 
-    match sender.shutdown() {
-        Ok(_) => handle_ret.map_err(|_| SimpleError::new("join err"))?,
-        Err(err) => Err(SimpleError::from(err)),
-    }
+    let shutdown_ret = sender.shutdown();
+
+    debug!("Shutdown: {:#?}", shutdown_ret);
+
+    handle.join().map_err(|_| SimpleError::new("join err"))?
 }
 
 pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
@@ -139,12 +142,13 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
         thread::sleep(Duration::from_secs(1));
     }
 
-    let handle_ret = handle.join();
+    debug!("Console exited shutdown ...");
 
-    match sender.shutdown() {
-        Ok(_) => handle_ret.map_err(|_| SimpleError::new("join err"))?,
-        Err(err) => Err(SimpleError::from(err)),
-    }
+    let shutdown_ret = sender.shutdown();
+
+    debug!("Shutdown: {:#?}", shutdown_ret);
+
+    handle.join().map_err(|_| SimpleError::new("join err"))?
 }
 
 pub mod prelude {
