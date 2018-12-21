@@ -49,11 +49,13 @@ impl ws::Handler for WebSocketServer {
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        match self.ctx.on_recv_message(&msg.into_data()) {
-            Some(callback) => {
-                self.out.send(callback)?;
+        if let Ok(msg) = protobuf::parse_from_bytes(&msg.into_data()) {
+            match self.ctx.on_recv_message(msg) {
+                Some(callback) => {
+                    self.out.send(protobuf::Message::write_to_bytes(&callback).expect("serialize"))?;
+                }
+                None => {}
             }
-            None => {}
         }
 
         Ok(())
@@ -66,7 +68,7 @@ impl ws::Handler for WebSocketServer {
                     self.out.shutdown()
                 } else {
                     match self.ctx.try_get_msg() {
-                        Some(msg) => self.out.send(msg)?,
+                        Some(msg) => self.out.send(protobuf::Message::write_to_bytes(&msg).expect("serialize"))?,
                         None => {}
                     }
 

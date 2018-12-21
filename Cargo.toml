@@ -1,13 +1,13 @@
 [package]
 name = "qni-connector-ws-rs"
 description = "qni connector for websocket"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Riey <creeper844@gmail.com>"]
 keywords = ["qni", "connector"]
 edition = "2018"
 repository = "https://github.com/Riey/qni-connector-ws-rs"
 homepage = "https://github.com/Riey/qni-connector-ws-rs"
-license-file = "LICENSE"
+license = "LGPL-3.0"
 readme = "README.md"
 
 exclude = [
@@ -20,7 +20,7 @@ default = []
 ssl = ["ws/ssl", "openssl"]
 
 [dependencies]
-qni-core-rs = "0.2.2"
+qni-core-rs = "0.2.4"
 simple-error = "0.1.13"
 ws = "0.7.9"
 borrowed-thread = "0.1.3"
