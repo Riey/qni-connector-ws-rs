@@ -1,9 +1,16 @@
 language: rust
 
+os:
+  - linux
+  - windows
+
 rust:
   - stable
   - beta
   - nightly
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" = 'windows' ]]; then choco install protoc; fi
 
 addons:
   apt:
@@ -21,8 +28,7 @@ cache: cargo
 
 matrix:
   allow_failures:
-    - rust: stable
-    - rust: beta
+    - os: windows
 
 script:
   - cargo build --verbose --all
