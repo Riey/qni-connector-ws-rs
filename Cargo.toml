@@ -20,7 +20,7 @@ default = []
 ssl = ["ws/ssl", "openssl"]
 
 [dependencies]
-qni-core-rs = "0.2.4"
+qni-core-rs = "0.3.1"
 simple-error = "0.1.13"
 ws = "0.7.9"
 log = "0.4.6"
