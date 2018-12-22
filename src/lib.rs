@@ -3,7 +3,6 @@ use log::debug;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use borrowed_thread;
 
 #[cfg(feature = "ssl")]
 use openssl::pkey::PKey;
@@ -52,7 +51,8 @@ impl ws::Handler for WebSocketServer {
         if let Ok(msg) = protobuf::parse_from_bytes(&msg.into_data()) {
             match self.ctx.on_recv_message(msg) {
                 Some(callback) => {
-                    self.out.send(protobuf::Message::write_to_bytes(&callback).expect("serialize"))?;
+                    self.out
+                        .send(protobuf::Message::write_to_bytes(&callback).expect("serialize"))?;
                 }
                 None => {}
             }
@@ -68,7 +68,9 @@ impl ws::Handler for WebSocketServer {
                     self.out.shutdown()
                 } else {
                     match self.ctx.try_get_msg() {
-                        Some(msg) => self.out.send(protobuf::Message::write_to_bytes(&msg).expect("serialize"))?,
+                        Some(msg) => self
+                            .out
+                            .send(protobuf::Message::write_to_bytes(&msg).expect("serialize"))?,
                         None => {}
                     }
 
@@ -88,28 +90,40 @@ impl ws::Handler for WebSocketServer {
 use simple_error::{SimpleError, SimpleResult};
 
 #[cfg(feautre = "ssl")]
-pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], pkey: &[u8]) -> SimpleResult<()> {
-
+pub fn start_connector_ssl(
+    ctx: &Arc<ConsoleContext>,
+    host: &str,
+    cert: &[u8],
+    pkey: &[u8],
+) -> SimpleResult<()> {
     let acceptor = Arc::new({
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
-        builder.set_private_key(PKey::private_key_from_pem(pkey).unwrap()).map_err(From::from)?;
-        builder.set_certificate(X509::from_pem(cert).unwrap()).map_err(From::from)?;
+        builder
+            .set_private_key(PKey::private_key_from_pem(pkey).unwrap())
+            .map_err(From::from)?;
+        builder
+            .set_certificate(X509::from_pem(cert).unwrap())
+            .map_err(From::from)?;
         builder.build()
     });
 
+    let ctx_inner = ctx.clone();
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, ctx.clone()).with_ssl(acceptor.clone()))
+        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()).with_ssl(acceptor.clone()))
         .map_err(SimpleError::from)?;
-
 
     let sender = socket.broadcaster();
 
-    let handle = borrowed_thread::spawn(|| {
-        socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    let host_inner = Arc::new(host.to_string());
+    let handle = thread::spawn(move || {
+        socket
+            .listen(&host_inner)
+            .map(|_| ())
+            .map_err(SimpleError::from)
     });
 
     while !ctx.need_exit() {
@@ -118,26 +132,28 @@ pub fn start_connector_ssl(ctx: &Arc<ConsoleContext>, host: &str, cert: &[u8], p
 
     debug!("Console exited shutdown ...");
 
-    let shutdown_ret = sender.shutdown();
-
-    debug!("Shutdown: {:#?}", shutdown_ret);
-
+    sender.shutdown().map_err(SimpleError::from)?;
     handle.join().map_err(|_| SimpleError::new("join err"))?
 }
 
 pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
+    let ctx_inner = ctx.clone();
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, ctx.clone()))
+        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()))
         .map_err(SimpleError::from)?;
 
     let sender = socket.broadcaster();
 
-    let handle = borrowed_thread::spawn(|| {
-        socket.listen(&host).map(|_| ()).map_err(SimpleError::from)
+    let host_inner = Arc::new(host.to_string());
+    let handle = thread::spawn(move || {
+        socket
+            .listen(host_inner.as_str())
+            .map(|_| ())
+            .map_err(SimpleError::from)
     });
 
     while !ctx.need_exit() {
@@ -146,10 +162,7 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
 
     debug!("Console exited shutdown ...");
 
-    let shutdown_ret = sender.shutdown();
-
-    debug!("Shutdown: {:#?}", shutdown_ret);
-
+    sender.shutdown().map_err(SimpleError::from)?;
     handle.join().map_err(|_| SimpleError::new("join err"))?
 }
 
