@@ -5,11 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 #[cfg(feature = "ssl")]
-use openssl::pkey::PKey;
-#[cfg(feature = "ssl")]
-use openssl::ssl::{SslAcceptor, SslMethod, SslStream};
-#[cfg(feature = "ssl")]
-use openssl::x509::X509;
+use openssl::ssl::{SslAcceptor, SslStream};
 #[cfg(feature = "ssl")]
 use ws::util::TcpStream;
 
@@ -87,15 +83,13 @@ impl ws::Handler for WebSocketServer {
     }
 }
 
-use simple_error::{SimpleError, SimpleResult};
-
 #[cfg(feautre = "ssl")]
 pub fn start_connector_ssl(
     ctx: &Arc<ConsoleContext>,
     host: &str,
     cert: &[u8],
     pkey: &[u8],
-) -> SimpleResult<()> {
+) -> ws::Result<()> {
     let acceptor = Arc::new({
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
         builder
@@ -113,8 +107,7 @@ pub fn start_connector_ssl(
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()).with_ssl(acceptor.clone()))
-        .map_err(SimpleError::from)?;
+        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()).with_ssl(acceptor.clone()))?;
 
     let sender = socket.broadcaster();
 
@@ -123,7 +116,6 @@ pub fn start_connector_ssl(
         socket
             .listen(&host_inner)
             .map(|_| ())
-            .map_err(SimpleError::from)
     });
 
     while !ctx.need_exit() {
@@ -132,19 +124,20 @@ pub fn start_connector_ssl(
 
     debug!("Console exited shutdown ...");
 
-    sender.shutdown().map_err(SimpleError::from)?;
-    handle.join().map_err(|_| SimpleError::new("join err"))?
+    sender.shutdown()?;
+    handle.join().map_err(|_| ws::Error::new(ws::ErrorKind::Internal, "join err"))??;
+
+    Ok(())
 }
 
-pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()> {
+pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> ws::Result<()> {
     let ctx_inner = ctx.clone();
     let socket = ws::Builder::new()
         .with_settings(ws::Settings {
             tcp_nodelay: true,
             ..ws::Settings::default()
         })
-        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()))
-        .map_err(SimpleError::from)?;
+        .build(move |out| WebSocketServer::new(out, ctx_inner.clone()))?;
 
     let sender = socket.broadcaster();
 
@@ -153,7 +146,6 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
         socket
             .listen(host_inner.as_str())
             .map(|_| ())
-            .map_err(SimpleError::from)
     });
 
     while !ctx.need_exit() {
@@ -162,8 +154,10 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> SimpleResult<()
 
     debug!("Console exited shutdown ...");
 
-    sender.shutdown().map_err(SimpleError::from)?;
-    handle.join().map_err(|_| SimpleError::new("join err"))?
+    sender.shutdown()?;
+    handle.join().map_err(|_| ws::Error::new(ws::ErrorKind::Internal, "join err"))??;
+
+    Ok(())
 }
 
 pub mod prelude {
