@@ -160,6 +160,3 @@ pub fn start_connector(ctx: &Arc<ConsoleContext>, host: &str) -> ws::Result<()> 
     Ok(())
 }
 
-pub mod prelude {
-    pub use crate::*;
-}
