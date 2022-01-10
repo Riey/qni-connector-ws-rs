@@ -44,7 +44,7 @@ impl ws::Handler for WebSocketServer {
     }
 
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        if let Ok(msg) = protobuf::parse_from_bytes(&msg.into_data()) {
+        if let Ok(msg) = protobuf::Message::parse_from_bytes(&msg.into_data()) {
             match self.ctx.on_recv_message(msg) {
                 Some(callback) => {
                     self.out

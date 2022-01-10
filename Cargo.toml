@@ -20,10 +20,10 @@ default = []
 ssl = ["ws/ssl", "openssl"]
 
 [dependencies]
-qni-core-rs = "0.3.2"
+qni-core-rs = { git = "https://github.com/Riey/qni-core-rs" }
 ws = "0.9.1"
-log = "0.4.8"
+log = "0.4.14"
 
 [dependencies.openssl]
-version = "0.10.25"
+version = "0.10.38"
 optional = true
